@@ -1,0 +1,22 @@
+{
+  "name": "rate-limiter-as-a-service",
+  "version": "1.0.0",
+  "description": "Pluggable rate limiting service — Token Bucket, Sliding Window, Fixed Window — backed by Redis. MTech Placement Project by Ayush Jain.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "jest --coverage"
+  },
+  "keywords": ["rate-limiter", "redis", "express", "system-design"],
+  "author": "Ayush Jain",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "ioredis": "^5.11.1",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.22.0"
+  }
+}
