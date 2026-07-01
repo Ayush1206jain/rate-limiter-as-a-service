@@ -2,12 +2,13 @@
 // POST /check — Rate limit check endpoint
 // d2: Fixed Window Counter
 // d3: Token Bucket (Lua-script atomic)
-// d4: Sliding Window Log (coming next)
+// d4: Sliding Window Log (Lua-script atomic)
 
 const express = require('express');
 const router = express.Router();
-const fixedWindow = require('../algorithms/fixedWindow');
-const tokenBucket = require('../algorithms/tokenBucket');
+const fixedWindow   = require('../algorithms/fixedWindow');
+const tokenBucket   = require('../algorithms/tokenBucket');
+const slidingWindow = require('../algorithms/slidingWindow');
 
 /**
  * POST /check
@@ -18,9 +19,9 @@ const tokenBucket = require('../algorithms/tokenBucket');
  * Query: ?strategy=fixed_window (default) | token_bucket | sliding_window
  *
  * Strategies:
- *   fixed_window  — uses limit + windowSecs
- *   token_bucket  — uses maxTokens + refillRate (tokens/sec)
- *   sliding_window — uses limit + windowSecs (d4)
+ *   fixed_window   — uses limit + windowSecs
+ *   token_bucket   — uses maxTokens + refillRate (tokens/sec)
+ *   sliding_window — uses limit + windowSecs (sorted set, most accurate)
  *
  * Response 200 (allowed):
  *   { allowed: true, remaining: N, resetAt: unixTimestamp, limit: N, strategy }
@@ -58,17 +59,18 @@ router.post('/', async (req, res) => {
         result = await tokenBucket.isAllowed(userId, endpoint, maxTokens, refillRate);
         break;
 
-      // stub — coming d4
       case 'sliding_window':
-        return res.status(501).json({ error: 'Sliding Window not implemented yet — coming d4' });
+        result = await slidingWindow.isAllowed(userId, endpoint, limit, windowSecs);
+        break;
 
       default:
         return res.status(400).json({ error: `Unknown strategy: ${strategy}` });
     }
 
-    // Normalise field names so header logic works for all strategies
-    // fixed_window  → result.limit, result.remaining, result.resetAt
-    // token_bucket  → result.maxTokens, result.tokensRemaining, result.nextRefillAt
+    // Normalise field names so header logic works for all strategies:
+    // fixed_window   → result.limit,     result.remaining, result.resetAt
+    // token_bucket   → result.maxTokens, result.tokensRemaining, result.nextRefillAt
+    // sliding_window → result.limit,     result.remaining, result.resetAt
     const effectiveLimit     = result.limit      ?? result.maxTokens;
     const effectiveRemaining = result.remaining  ?? Math.floor(result.tokensRemaining ?? 0);
     const effectiveResetAt   = result.resetAt    ?? result.nextRefillAt;
@@ -103,6 +105,11 @@ router.post('/', async (req, res) => {
       responseBody.maxTokens       = result.maxTokens;
       responseBody.refillRate      = result.refillRate;
       responseBody.nextRefillAt    = result.nextRefillAt;
+    } else if (strategy === 'sliding_window') {
+      responseBody.remaining    = result.remaining;
+      responseBody.limit        = result.limit;
+      responseBody.currentCount = result.currentCount;
+      responseBody.windowMs     = result.windowMs;
     } else {
       responseBody.remaining = result.remaining;
       responseBody.limit     = result.limit;
