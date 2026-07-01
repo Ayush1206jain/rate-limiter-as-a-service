@@ -8,7 +8,7 @@ const Redis = require('ioredis');
 const redis = new Redis({
   host: process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.REDIS_PORT) || 6379,
-  // reconnect strategy: retry up to 10 times with exponential backoff
+  // reconnect strategy: retry up to 10 times
   retryStrategy(times) {
     if (times > 10) {
       console.error('[Redis] Max reconnection attempts reached. Giving up.');
