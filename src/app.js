@@ -1,10 +1,13 @@
 // src/app.js
-// Express application setup
+// Express application setup — D5: added /auth and /rules routes
 
 require('dotenv').config();
 const express = require('express');
 
 const checkRouter = require('./routes/check');
+const authRouter  = require('./routes/auth');
+const rulesRouter = require('./routes/rules');
+const authMiddleware = require('./middleware/auth');
 
 const app = express();
 
@@ -19,7 +22,9 @@ app.use((req, res, next) => {
 });
 
 // --- Routes ---
-app.use('/check', checkRouter);
+app.use('/auth',  authRouter);                         // POST /auth/token  (no auth needed)
+app.use('/rules', authMiddleware, rulesRouter);         // POST /rules, GET /rules/:userId  (JWT required)
+app.use('/check', checkRouter);                         // POST /check       (JWT required — auth applied inside route)
 
 // Health check endpoint — useful for Docker and load-balancer readiness probes
 app.get('/health', (req, res) => {
